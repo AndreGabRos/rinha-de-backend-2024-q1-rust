@@ -5,9 +5,9 @@ services:
     # Lembre-se de que seu serviço HTTP deve estar hospedado num repositório
     # publicamente acessível! Ex.: hub.docker.com
     build:
-      context: api
+      context: .
     hostname: api01
-    container_name: rinha-api1-teste1
+    container_name: rinha24-api01
     environment:
       - DB_HOSTNAME=db
     
@@ -15,7 +15,7 @@ services:
     # mas é comum as pessoas o fazerem para testarem suas APIs e conectarem
     # ao banco de dados na fase de desenvolvimento.
     ports:
-      - "8081:8080"
+      - "8081:8000"
     depends_on:
       - db
     deploy:
@@ -28,11 +28,11 @@ services:
     # Essa sintaxe reusa o que foi declarado em 'api01'.
     <<: *api 
     hostname: api02
-    container_name: rinha-api2-teste1
+    container_name: rinha24-api02
     environment:
       - DB_HOSTNAME=db
     ports:
-      - "8082:8080"
+      - "8082:8000"
  
   nginx:
     image: nginx:latest
