@@ -7,7 +7,6 @@ services:
     build:
       context: .
     hostname: api01
-    container_name: rinha24-api01
     environment:
       - DB_HOSTNAME=db
     
@@ -28,7 +27,6 @@ services:
     # Essa sintaxe reusa o que foi declarado em 'api01'.
     <<: *api 
     hostname: api02
-    container_name: rinha24-api02
     environment:
       - DB_HOSTNAME=db
     ports:
