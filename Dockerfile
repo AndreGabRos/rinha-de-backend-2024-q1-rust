@@ -12,4 +12,5 @@ COPY src/ ./src/
 RUN cargo build
 
 EXPOSE 8000
-CMD ./target/release/rinha24
+#Mudar de debug para release para os testes
+CMD ./target/debug/rinha24
