@@ -1,5 +1,9 @@
 -- Coloque scripts iniciais aqui
-CREATE TABLE...
+CREATE TABLE clientes (
+    id SERIAL PRIMARY KEY,
+    nome VARCHAR(100),
+    limite INTEGER
+);
 
 DO $$
 BEGIN
