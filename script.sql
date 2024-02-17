@@ -1,8 +1,18 @@
 -- Coloque scripts iniciais aqui
 CREATE TABLE clientes (
-    id SERIAL PRIMARY KEY,
-    nome VARCHAR(100),
-    limite INTEGER
+  id SERIAL PRIMARY KEY NOT NULL,
+  nome VARCHAR(100) NOT NULL, 
+  limite INTEGER NOT NULL CHECK (limite >= 0),
+  saldo INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE transacoes (
+  id SERIAL PRIMARY KEY NOT NULL,
+  id_cliente INTEGER NOT NULL,
+  valor INTEGER NOT NULL,
+  tipo CHAR(1),
+  descricao TEXT,
+  realizada_em TIMESTAMP
 );
 
 DO $$
