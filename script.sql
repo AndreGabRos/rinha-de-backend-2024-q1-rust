@@ -10,9 +10,11 @@ CREATE TABLE transacoes (
   id SERIAL PRIMARY KEY NOT NULL,
   id_cliente INTEGER NOT NULL,
   valor INTEGER NOT NULL,
-  tipo CHAR(1),
+  tipo CHAR(1) NOT NULL,
   descricao TEXT,
-  realizada_em TIMESTAMP
+  realizada_em TIMESTAMP NOT NULL,
+
+  CONSTRAINT clientes FOREIGN KEY (id_cliente) REFERENCES clientes(id)
 );
 
 DO $$
