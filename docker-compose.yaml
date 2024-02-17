@@ -9,6 +9,9 @@ services:
     hostname: api01
     environment:
       - DB_HOSTNAME=db
+      - POSTGRES_PASSWORD=123
+      - POSTGRES_USER=admin
+      - POSTGRES_DB=rinha
     
     # Não é necessário expor qualquer porta além da porta do load balancer,
     # mas é comum as pessoas o fazerem para testarem suas APIs e conectarem
@@ -29,6 +32,9 @@ services:
     hostname: api02
     environment:
       - DB_HOSTNAME=db
+      - POSTGRES_PASSWORD=123
+      - POSTGRES_USER=admin
+      - POSTGRES_DB=rinha
     ports:
       - "8082:8000"
  

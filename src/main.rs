@@ -1,4 +1,5 @@
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+use std::env;
 
 // This struct represents state
 struct AppState {
@@ -19,6 +20,22 @@ async fn manual_hello() -> impl Responder {
     HttpResponse::Ok().body("Hey there!")
 }
 
+#[get("/env")]
+async fn show_envs() -> impl Responder {
+
+    let db_hostname: String = env::var("DB_HOSTNAME").expect("Failed to read DB_HOSTNAME env var");
+    let postgres_pswd = env::var("POSTGRES_PASSWORD").expect("Failed to read POSTGRES_PASSWORD env var");
+    let postgres_user = env::var("POSTGRES_USER").expect("Failed to read POSTGRES_USER env var");
+    let postgres_db = env::var("POSTGRES_DB").expect("Failed to read POSTGRES_DB env var");
+
+    // Constrói a resposta com todas as informações das variáveis de ambiente
+    let response_body = format!(
+        "DB Hostname: {}\nPostgres Password: {}\nPostgres User: {}\nPostgres DB: {}",
+        db_hostname, postgres_pswd, postgres_user, postgres_db
+    ); 
+
+    HttpResponse::Ok().body(response_body)
+}
 
 async fn index(data: web::Data<AppState>) -> String {
     let app_name = &data.app_name; // <- get app_name
@@ -37,13 +54,14 @@ async fn main() -> std::io::Result<()> {
 
             .service(hello)
             .service(echo)
+            .service(show_envs)
             .service(web::scope("/app")
                 // ...so this handles requests for `GET /app/index.html`
                 .route("/index.html", web::get().to(index)),)
             .route("/hey", web::get().to(manual_hello))
 
     })
-    .bind(("127.0.0.1", 8000))?
+    .bind(("0.0.0.0", 8000))?
     .run()
     .await
 }
