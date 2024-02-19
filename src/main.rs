@@ -1,5 +1,9 @@
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use std::env;
+use rinha24::*;
+use diesel::query_dsl::QueryDsl;
+use diesel::SelectableHelper;
+use diesel::RunQueryDsl;
 
 // This struct represents state
 struct AppState {
@@ -37,6 +41,28 @@ async fn show_envs() -> impl Responder {
     HttpResponse::Ok().body(response_body)
 }
 
+#[get("/banco")]
+async fn banco() -> impl Responder {
+    use self::models::Cliente;
+    use rinha24::schema::clientes::dsl::clientes;
+    let connection = &mut establish_connection();
+
+    let res  = clientes
+        .select(Cliente::as_select())
+        .load(connection)
+        .expect("Error loading posts");
+
+    let mut response_body = String::new(); 
+
+    for cliente in res {
+        response_body.push_str(&format!("ID: {}, Nome: {}, Limite: {}, Saldo: {}\n",
+                                        cliente.id, cliente.nome, cliente.limite, cliente.saldo));
+    }
+
+    HttpResponse::Ok().body(response_body) 
+}
+
+
 async fn index(data: web::Data<AppState>) -> String {
     let app_name = &data.app_name; // <- get app_name
     format!("Hello {app_name}!") // <- response with app_name
@@ -55,13 +81,14 @@ async fn main() -> std::io::Result<()> {
             .service(hello)
             .service(echo)
             .service(show_envs)
+            .service(banco)
             .service(web::scope("/app")
                 // ...so this handles requests for `GET /app/index.html`
                 .route("/index.html", web::get().to(index)),)
             .route("/hey", web::get().to(manual_hello))
 
     })
-    .bind(("0.0.0.0", 8000))?
+    .bind(("0.0.0.0", 8081))?
     .run()
     .await
 }
