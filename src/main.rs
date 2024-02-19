@@ -1,5 +1,6 @@
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use rinha24::{*, schema::clientes, models::Cliente};
+use serde_json::json;
 use std::env;
 use diesel::prelude::{*, SelectableHelper};
 
@@ -27,15 +28,9 @@ async fn banco() -> impl Responder {
 
     let res = clientes::table.select(Cliente::as_select()).load(connection).expect("Error loading clients");
 
-    let mut response_body = String::new(); 
+    let response_body = json!(res);
 
-    for cliente in res {
-        response_body
-            .push_str(&format!("ID: {}, Nome: {}, Limite: {}, Saldo: {}\n",
-                                        cliente.id, cliente.nome, cliente.limite, cliente.saldo));
-    }
-
-    HttpResponse::Ok().body(response_body) 
+    HttpResponse::Ok().body(response_body.to_string()) 
 }
 
 
