@@ -1,23 +1,23 @@
 use diesel::prelude::*;
 
+#[derive(Queryable, Selectable)]
 #[diesel(table_name = crate::schema::clientes)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-#[derive(Queryable, Selectable)]
 pub struct Cliente {
-    id: i32,
-    nome: String,
-    limite: i32,
-    saldo: i32,
+    pub id: i32,
+    pub nome: String,
+    pub limite: i32,
+    pub saldo: i32,
 }
 
-#[diesel(table_name = crate::schema::transacoes)]
+/*#[diesel(table_name = crate::schema::transacoes)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 #[derive(Queryable, Selectable)]
 pub struct Transacao {
     id: i32,
     id_cliente: i32,
     valor: i32,
-    tipo: char,
+    tipo: String,
     descricao: Option<String>,
-    realizada_em: chrono::NaiveDateTime,
-}
+    realizada_em: Date,
+}*/
