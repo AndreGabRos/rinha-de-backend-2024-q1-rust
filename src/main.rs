@@ -1,8 +1,8 @@
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
-use rinha24::{*, schema::{clientes, transacoes::{id_cliente, self, descricao}}, models::{Cliente, Transacao}};
+use rinha24::{*, schema::{clientes::{self, limite}, transacoes::{id_cliente, self, descricao}}, models::{Cliente, Transacao, NovaTransacao, RequestTransacao}};
 use serde::Deserialize;
 use serde_json::json;
-use std::env;
+use std::{env, time::SystemTime};
 use diesel::prelude::{*, SelectableHelper};
 
 
@@ -34,21 +34,54 @@ async fn banco() -> impl Responder {
     HttpResponse::Ok().json(response_body) 
 }
 
-#[derive(Deserialize)]
-struct NovaTransacao {
-    valor: i32,
-    tipo: char,
-    descricao: String,
-}
 #[post("/clientes/{id}/transacoes")]
-async fn transacao(path: web::Path<i32>, transacao: web::Json<NovaTransacao>) -> impl Responder {
+async fn transacao(path: web::Path<i32>, transacao: web::Json<RequestTransacao>) -> impl Responder {
     let connection = &mut establish_connection();
-    let cliente = clientes::table.find(path.abs()).select(Cliente::as_select()).first(connection).optional();
 
-    match cliente {
-        Ok(Some(cliente)) => HttpResponse::Ok().json(json!(cliente)),
-        Ok(None) => HttpResponse::Ok().body(format!("Cliente não encontrado.")),
-        Err(_) => HttpResponse::Ok().body(format!("Erro.")),
+    let mut nova_transacao = NovaTransacao {
+        id_cliente: path.abs(),
+        valor: transacao.valor,
+        tipo: &transacao.tipo,
+        descricao: &transacao.descricao,
+        realizada_em: SystemTime::now(),
+    };
+
+    let cliente = clientes::table
+        .find(path.abs())
+        .select(Cliente::as_select())
+        .first(connection)
+        .optional();
+
+    if transacao.tipo == "d" {
+        nova_transacao.valor = nova_transacao.valor * -1;
+    } else if transacao.tipo != "c" {
+        return HttpResponse::Ok().body("Transacao inválida.");
+    }
+
+    let a = if let Ok(Some(cliente)) = &cliente {
+        if nova_transacao.valor + cliente.saldo < cliente.limite * -1 {
+            return HttpResponse::Ok().body("Não há limite o suficiente.");
+        }
+        let updated_cliente = diesel::update(clientes::table.find(path.abs()))
+            .set(clientes::saldo.eq(cliente.saldo+nova_transacao.valor))
+            .returning(Cliente::as_returning())
+            .get_result(connection)
+            .unwrap();
+
+        Some((updated_cliente.limite, updated_cliente.saldo))
+    } else {
+        None
+    };
+
+    diesel::insert_into(transacoes::table)
+        .values(&nova_transacao)
+        .returning(Transacao::as_returning())
+        .get_result(connection)
+        .expect("Error saving new transaction");
+
+    match a {
+        Some((cliente_limite, cliente_saldo)) => HttpResponse::Ok().body(format!("{}, {}", cliente_limite, cliente_saldo)),
+        None => HttpResponse::Ok().body(format!("Isso aí")),
     }
 }
 

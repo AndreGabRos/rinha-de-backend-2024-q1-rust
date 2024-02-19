@@ -1,6 +1,8 @@
 use std::time::SystemTime;
 use diesel::prelude::*;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
+
+use crate::schema::transacoes;
 
 #[derive(Serialize)]
 #[derive(Queryable, Selectable)]
@@ -23,4 +25,21 @@ pub struct Transacao {
     tipo: String,
     descricao: Option<String>,
     realizada_em: SystemTime,
+}
+
+#[derive(Deserialize)]
+pub struct RequestTransacao {
+    pub valor: i32,
+    pub tipo: String,
+    pub descricao: String,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = transacoes)]
+pub struct NovaTransacao<'a> {
+    pub id_cliente: i32,
+    pub valor: i32,
+    pub tipo: &'a str,
+    pub descricao: &'a str,
+    pub realizada_em: SystemTime,
 }
