@@ -1,5 +1,6 @@
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
-use rinha24::{*, schema::clientes, models::Cliente};
+use rinha24::{*, schema::{clientes, transacoes::{id_cliente, self, descricao}}, models::{Cliente, Transacao}};
+use serde::Deserialize;
 use serde_json::json;
 use std::env;
 use diesel::prelude::{*, SelectableHelper};
@@ -30,9 +31,26 @@ async fn banco() -> impl Responder {
 
     let response_body = json!(res);
 
-    HttpResponse::Ok().body(response_body.to_string()) 
+    HttpResponse::Ok().json(response_body) 
 }
 
+#[derive(Deserialize)]
+struct NovaTransacao {
+    valor: i32,
+    tipo: char,
+    descricao: String,
+}
+#[post("/clientes/{id}/transacoes")]
+async fn transacao(path: web::Path<i32>, transacao: web::Json<NovaTransacao>) -> impl Responder {
+    let connection = &mut establish_connection();
+    let cliente = clientes::table.find(path.abs()).select(Cliente::as_select()).first(connection).optional();
+
+    match cliente {
+        Ok(Some(cliente)) => HttpResponse::Ok().json(json!(cliente)),
+        Ok(None) => HttpResponse::Ok().body(format!("Cliente não encontrado.")),
+        Err(_) => HttpResponse::Ok().body(format!("Erro.")),
+    }
+}
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -40,6 +58,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .service(show_envs)
             .service(banco)
+            .service(transacao)
     })
     .bind(("0.0.0.0", 8081))?
     .run()
