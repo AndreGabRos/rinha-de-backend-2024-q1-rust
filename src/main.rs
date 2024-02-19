@@ -1,28 +1,8 @@
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+use rinha24::{*, schema::clientes, models::Cliente};
 use std::env;
-use rinha24::*;
-use diesel::query_dsl::QueryDsl;
-use diesel::SelectableHelper;
-use diesel::RunQueryDsl;
+use diesel::prelude::{*, SelectableHelper};
 
-// This struct represents state
-struct AppState {
-    app_name: String,
-}
-
-#[get("/")]
-async fn hello() -> impl Responder {
-    HttpResponse::Ok().body("Hello world!")
-}
-
-#[post("/echo")]
-async fn echo(req_body: String) -> impl Responder {
-    HttpResponse::Ok().body(req_body)
-}
-
-async fn manual_hello() -> impl Responder {
-    HttpResponse::Ok().body("Hey there!")
-}
 
 #[get("/env")]
 async fn show_envs() -> impl Responder {
@@ -43,19 +23,15 @@ async fn show_envs() -> impl Responder {
 
 #[get("/banco")]
 async fn banco() -> impl Responder {
-    use self::models::Cliente;
-    use rinha24::schema::clientes::dsl::clientes;
     let connection = &mut establish_connection();
 
-    let res  = clientes
-        .select(Cliente::as_select())
-        .load(connection)
-        .expect("Error loading posts");
+    let res = clientes::table.select(Cliente::as_select()).load(connection).expect("Error loading clients");
 
     let mut response_body = String::new(); 
 
     for cliente in res {
-        response_body.push_str(&format!("ID: {}, Nome: {}, Limite: {}, Saldo: {}\n",
+        response_body
+            .push_str(&format!("ID: {}, Nome: {}, Limite: {}, Saldo: {}\n",
                                         cliente.id, cliente.nome, cliente.limite, cliente.saldo));
     }
 
@@ -63,30 +39,12 @@ async fn banco() -> impl Responder {
 }
 
 
-async fn index(data: web::Data<AppState>) -> String {
-    let app_name = &data.app_name; // <- get app_name
-    format!("Hello {app_name}!") // <- response with app_name
-}
-
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
         App::new()
-
-            //Informações do app
-            .app_data(web::Data::new(AppState {
-                app_name: String::from("Actix Web"),
-            }))
-
-            .service(hello)
-            .service(echo)
             .service(show_envs)
             .service(banco)
-            .service(web::scope("/app")
-                // ...so this handles requests for `GET /app/index.html`
-                .route("/index.html", web::get().to(index)),)
-            .route("/hey", web::get().to(manual_hello))
-
     })
     .bind(("0.0.0.0", 8081))?
     .run()
