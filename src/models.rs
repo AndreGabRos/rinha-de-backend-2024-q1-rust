@@ -1,5 +1,5 @@
 use std::time::SystemTime;
-use diesel::prelude::*;
+use diesel::{prelude::*, serialize};
 use serde::{Serialize, Deserialize};
 
 use crate::schema::transacoes;
@@ -42,4 +42,10 @@ pub struct NovaTransacao<'a> {
     pub tipo: &'a str,
     pub descricao: &'a str,
     pub realizada_em: SystemTime,
+}
+
+#[derive(Serialize)]
+pub struct RespostaTransacao {
+    pub limite: i32,
+    pub saldo: i32,
 }

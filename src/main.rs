@@ -1,5 +1,5 @@
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
-use rinha24::{*, schema::{clientes::{self, limite}, transacoes::{id_cliente, self, descricao}}, models::{Cliente, Transacao, NovaTransacao, RequestTransacao}};
+use rinha24::{*, schema::{clientes::{self, limite}, transacoes::{id_cliente, self, descricao}}, models::{Cliente, Transacao, NovaTransacao, RequestTransacao, RespostaTransacao}};
 use serde::Deserialize;
 use serde_json::json;
 use std::{env, time::SystemTime};
@@ -58,7 +58,7 @@ async fn transacao(path: web::Path<i32>, transacao: web::Json<RequestTransacao>)
         return HttpResponse::Ok().body("Transacao inválida.");
     }
 
-    let a = if let Ok(Some(cliente)) = &cliente {
+    let res = if let Ok(Some(cliente)) = &cliente {
         if nova_transacao.valor + cliente.saldo < cliente.limite * -1 {
             return HttpResponse::Ok().body("Não há limite o suficiente.");
         }
@@ -79,8 +79,14 @@ async fn transacao(path: web::Path<i32>, transacao: web::Json<RequestTransacao>)
         .get_result(connection)
         .expect("Error saving new transaction");
 
-    match a {
-        Some((cliente_limite, cliente_saldo)) => HttpResponse::Ok().body(format!("{}, {}", cliente_limite, cliente_saldo)),
+    match res {
+        Some((cliente_limite, cliente_saldo)) => {
+            let res = RespostaTransacao {
+                limite: cliente_limite,
+                saldo: cliente_saldo,
+            };
+            HttpResponse::Ok().json(json!(res))
+        },
         None => HttpResponse::Ok().body(format!("Isso aí")),
     }
 }
