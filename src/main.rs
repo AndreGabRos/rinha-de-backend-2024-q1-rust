@@ -104,11 +104,22 @@ async fn extrato(path: web::Path<i32>) -> impl Responder {
     if !res_cliente.is_empty(){
         let res_transacoes = transacoes::table
         .filter(transacoes::id_cliente.eq(path.abs()))
+        .limit(10)
+        .order(transacoes::realizada_em)
         .select(Transacao::as_select())
         .load(connection)
         .expect("Error loading transactions");
 
-        let response_body = json!(res_cliente );
+        let response_body = json!({
+            "saldo": {
+                "limite": res_cliente[0].limite,
+                "total": res_cliente[0].saldo,
+                "data_extrato":  Local::now().to_rfc3339().to_string(),
+                
+            },
+            "ultimas_transacoes": &res_transacoes,
+        });
+        
         return HttpResponse::Ok().json(response_body); 
     }
     HttpResponse::Ok().body("Erro ao acessar clientes")

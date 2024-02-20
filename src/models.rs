@@ -18,6 +18,7 @@ pub struct Cliente {
 #[diesel(table_name = crate::schema::transacoes)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 #[derive(Queryable, Selectable)]
+#[derive(Serialize)]
 pub struct Transacao {
     id: i32,
     id_cliente: i32,
