@@ -2,9 +2,10 @@ use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use rinha24::{*, schema::{clientes::{self, limite}, transacoes::{id_cliente, self, descricao}}, models::{Cliente, Transacao, NovaTransacao, RequestTransacao, RespostaTransacao}};
 use serde::Deserialize;
 use serde_json::json;
-use std::{env, time::SystemTime};
+use std::env;
 use diesel::prelude::{*, SelectableHelper};
-
+use chrono::Local;
+use chrono::SecondsFormat::Secs;
 
 #[get("/env")]
 async fn show_envs() -> impl Responder {
@@ -43,7 +44,7 @@ async fn transacao(path: web::Path<i32>, transacao: web::Json<RequestTransacao>)
         valor: transacao.valor,
         tipo: &transacao.tipo,
         descricao: &transacao.descricao,
-        realizada_em: SystemTime::now(),
+        realizada_em: Local::now().to_rfc3339_opts(Secs,true).to_string(),
     };
 
     let cliente = clientes::table
@@ -114,7 +115,7 @@ async fn extrato(path: web::Path<i32>) -> impl Responder {
             "saldo": {
                 "limite": res_cliente[0].limite,
                 "total": res_cliente[0].saldo,
-                "data_extrato":  Local::now().to_rfc3339().to_string(),
+                "data_extrato":  Local::now().to_rfc3339_opts(Secs,true).to_string(),
                 
             },
             "ultimas_transacoes": &res_transacoes,
