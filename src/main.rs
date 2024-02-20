@@ -85,6 +85,29 @@ async fn transacao(path: web::Path<i32>, transacao: web::Json<RequestTransacao>)
     }
 }
 
+#[get("/clientes/{id}/extrato")]
+async fn extrato(path: web::Path<i32>) -> impl Responder {
+    let connection = &mut establish_connection();
+    
+    let res_cliente = clientes::table
+        .filter(clientes::id.eq(path.abs()))
+        .select(Cliente::as_select())
+        .load(connection)
+        .expect("Error loading clients");
+
+    if !res_cliente.is_empty(){
+        let res_transacoes = transacoes::table
+        .filter(transacoes::id_cliente.eq(path.abs()))
+        .select(Transacao::as_select())
+        .load(connection)
+        .expect("Error loading transactions");
+
+        let response_body = json!(res_cliente );
+        return HttpResponse::Ok().json(response_body); 
+    }
+    HttpResponse::Ok().body("Erro ao acessar clientes")
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
@@ -92,6 +115,7 @@ async fn main() -> std::io::Result<()> {
             .service(show_envs)
             .service(banco)
             .service(transacao)
+            .service(extrato)
     })
     .bind(("0.0.0.0", 8000))?
     .run()
