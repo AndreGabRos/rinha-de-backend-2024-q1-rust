@@ -5,7 +5,7 @@ use serde_json::json;
 use std::env;
 use diesel::prelude::{*, SelectableHelper};
 use chrono::Local;
-use chrono::SecondsFormat::Secs;
+use chrono::SecondsFormat::Micros;
 
 #[get("/env")]
 async fn show_envs() -> impl Responder {
@@ -44,7 +44,7 @@ async fn transacao(path: web::Path<i32>, transacao: web::Json<RequestTransacao>)
         valor: transacao.valor,
         tipo: &transacao.tipo,
         descricao: &transacao.descricao,
-        realizada_em: Local::now().to_rfc3339_opts(Secs,true).to_string(),
+        realizada_em: Local::now().to_rfc3339_opts(Micros,true).to_string(),
     };
 
     let cliente = clientes::table
@@ -115,7 +115,7 @@ async fn extrato(path: web::Path<i32>) -> impl Responder {
             "saldo": {
                 "limite": res_cliente[0].limite,
                 "total": res_cliente[0].saldo,
-                "data_extrato":  Local::now().to_rfc3339_opts(Secs,true).to_string(),
+                "data_extrato":  Local::now().to_rfc3339_opts(Micros,true).to_string(),
                 
             },
             "ultimas_transacoes": &res_transacoes,
