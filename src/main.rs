@@ -1,10 +1,11 @@
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+use chrono_tz::Tz;
 use rinha24::{*, schema::{clientes::{self, limite}, transacoes::{id_cliente, self, descricao}}, models::{Cliente, Transacao, NovaTransacao, RequestTransacao, RespostaTransacao}};
 use serde::Deserialize;
 use serde_json::json;
-use std::env;
+use std::{env, str::FromStr, time::SystemTime};
 use diesel::prelude::{*, SelectableHelper};
-use chrono::Local;
+use chrono::{Local, DateTime};
 use chrono::SecondsFormat::Micros;
 
 #[get("/env")]
@@ -39,12 +40,21 @@ async fn banco() -> impl Responder {
 async fn transacao(path: web::Path<i32>, transacao: web::Json<RequestTransacao>) -> impl Responder {
     let connection = &mut establish_connection();
 
+    let data_atual = Local::now().to_rfc3339_opts(Micros,true);
+    let data_atual_convertida = DateTime::parse_from_rfc3339(&data_atual).unwrap();
+    let data_fuso_sao_paulo = data_atual_convertida.with_timezone(&Tz::America__Sao_Paulo);
+
+    let data_atual_convertida_de_novo: SystemTime = data_fuso_sao_paulo.into();
+
+    println!("{}", data_fuso_sao_paulo);
+
+
     let mut nova_transacao = NovaTransacao {
         id_cliente: path.abs(),
         valor: transacao.valor,
         tipo: &transacao.tipo,
         descricao: &transacao.descricao,
-        realizada_em: Local::now().to_rfc3339_opts(Micros,true).to_string(),
+        realizada_em: data_atual_convertida_de_novo,
     };
 
     let cliente = clientes::table
@@ -105,8 +115,8 @@ async fn extrato(path: web::Path<i32>) -> impl Responder {
     if !res_cliente.is_empty(){
         let res_transacoes = transacoes::table
         .filter(transacoes::id_cliente.eq(path.abs()))
-        .limit(10)
-        .order(transacoes::realizada_em)
+        .limit(2)
+        .order(transacoes::realizada_em.desc())
         .select(Transacao::as_select())
         .load(connection)
         .expect("Error loading transactions");
