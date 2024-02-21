@@ -1,6 +1,8 @@
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use chrono_tz::Tz;
-use rinha24::{*, schema::{clientes::{self, limite}, transacoes::{id_cliente, self, descricao}}, models::{Cliente, Transacao, NovaTransacao, RequestTransacao, RespostaTransacao}};
+use rinha24::{*, models::{Cliente, Transacao, NovaTransacao, RequestTransacao, RespostaTransacao}};
+use rinha24::schema::clientes::{self, limite};
+use rinha24::schema::transacoes::{self, id_cliente, descricao};
 use serde::Deserialize;
 use serde_json::json;
 use std::{env, str::FromStr, time::SystemTime};
@@ -38,16 +40,25 @@ async fn banco() -> impl Responder {
 
 #[post("/clientes/{id}/transacoes")]
 async fn transacao(path: web::Path<i32>, transacao: web::Json<RequestTransacao>) -> impl Responder {
+
     let connection = &mut establish_connection();
 
     let data_atual = Local::now().to_rfc3339_opts(Micros,true);
     let data_atual_convertida = DateTime::parse_from_rfc3339(&data_atual).unwrap();
-    let data_fuso_sao_paulo = data_atual_convertida.with_timezone(&Tz::America__Sao_Paulo);
 
-    let data_atual_convertida_de_novo: SystemTime = data_fuso_sao_paulo.into();
+    let data_atual_convertida_de_novo: SystemTime = data_atual_convertida.into();
 
-    println!("{}", data_fuso_sao_paulo);
+    let cliente = clientes::table
+        .find(path.abs())
+        .select(Cliente::as_select())
+        .first(connection)
+        .optional();
 
+    let cliente = match cliente {
+        Ok(Some(cliente)) => cliente,
+        Ok(None) => return HttpResponse::NotFound().body(format!("Id inválido")),
+        Err(_) => return HttpResponse::Ok().body("Errinho"),
+    };
 
     let mut nova_transacao = NovaTransacao {
         id_cliente: path.abs(),
@@ -57,32 +68,21 @@ async fn transacao(path: web::Path<i32>, transacao: web::Json<RequestTransacao>)
         realizada_em: data_atual_convertida_de_novo,
     };
 
-    let cliente = clientes::table
-        .find(path.abs())
-        .select(Cliente::as_select())
-        .first(connection)
-        .optional();
-
     if transacao.tipo == "d" {
         nova_transacao.valor = nova_transacao.valor * -1;
     } else if transacao.tipo != "c" {
         return HttpResponse::Ok().body("Transacao inválida.");
     }
 
-    let res = if let Ok(Some(cliente)) = &cliente {
-        if nova_transacao.valor + cliente.saldo < cliente.limite * -1 {
-            return HttpResponse::Ok().body("Não há limite o suficiente.");
-        }
-        let updated_cliente = diesel::update(clientes::table.find(path.abs()))
-            .set(clientes::saldo.eq(cliente.saldo+nova_transacao.valor))
-            .returning(Cliente::as_returning())
-            .get_result(connection)
-            .unwrap();
-
-        Some((updated_cliente.limite, updated_cliente.saldo))
-    } else {
-        None
-    };
+    if nova_transacao.valor + cliente.saldo < cliente.limite * -1 {
+        return HttpResponse::build(actix_web::http::StatusCode::UNPROCESSABLE_ENTITY)
+            .body("Não há limite o suficiente.");
+    }
+    let updated_cliente = diesel::update(clientes::table.find(path.abs()))
+        .set(clientes::saldo.eq(cliente.saldo+nova_transacao.valor))
+        .returning(Cliente::as_returning())
+        .get_result(connection)
+        .unwrap();
 
     diesel::insert_into(transacoes::table)
         .values(&nova_transacao)
@@ -90,16 +90,12 @@ async fn transacao(path: web::Path<i32>, transacao: web::Json<RequestTransacao>)
         .get_result(connection)
         .expect("Error saving new transaction");
 
-    match res {
-        Some((cliente_limite, cliente_saldo)) => {
-            let res = RespostaTransacao {
-                limite: cliente_limite,
-                saldo: cliente_saldo,
-            };
-            HttpResponse::Ok().json(json!(res))
-        },
-        None => HttpResponse::Ok().body(format!("Isso aí")),
-    }
+    let res = RespostaTransacao {
+        limite: updated_cliente.limite,
+        saldo: updated_cliente.saldo,
+    };
+
+    return HttpResponse::Ok().json(json!(res))
 }
 
 #[get("/clientes/{id}/extrato")]
@@ -133,7 +129,7 @@ async fn extrato(path: web::Path<i32>) -> impl Responder {
         
         return HttpResponse::Ok().json(response_body); 
     }
-    HttpResponse::Ok().body("Erro ao acessar clientes")
+    HttpResponse::NotFound().body("Erro ao acessar clientes")
 }
 
 #[actix_web::main]
