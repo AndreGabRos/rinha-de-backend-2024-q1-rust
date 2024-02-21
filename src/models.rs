@@ -1,4 +1,4 @@
-use std::time::SystemTime;
+
 use diesel::prelude::*;
 use serde::{Serialize, Deserialize};
 
@@ -26,7 +26,7 @@ pub struct Transacao {
     pub valor: i32,
     pub tipo: String,
     pub descricao: Option<String>,
-    pub realizada_em: SystemTime,
+    pub realizada_em: String,
 }
 
 #[derive(Deserialize)]
@@ -43,7 +43,7 @@ pub struct NovaTransacao<'a> {
     pub valor: i32,
     pub tipo: &'a str,
     pub descricao: &'a str,
-    pub realizada_em: SystemTime,
+    pub realizada_em: String,
 }
 
 #[derive(Serialize)]

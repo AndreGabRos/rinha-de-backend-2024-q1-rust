@@ -1,13 +1,13 @@
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
-use chrono_tz::Tz;
+
 use rinha24::{*, models::{Cliente, Transacao, NovaTransacao, RequestTransacao, RespostaTransacao}};
-use rinha24::schema::clientes::{self, limite};
-use rinha24::schema::transacoes::{self, id_cliente, descricao};
-use serde::Deserialize;
+use rinha24::schema::clientes::{self};
+use rinha24::schema::transacoes::{self};
+
 use serde_json::json;
-use std::{env, time::SystemTime};
+use std::{env};
 use diesel::prelude::{*, SelectableHelper};
-use chrono::{Local, DateTime};
+use chrono::{Local};
 use chrono::SecondsFormat::Micros;
 
 #[get("/env")]
@@ -43,11 +43,6 @@ async fn transacao(path: web::Path<i32>, transacao: web::Json<RequestTransacao>)
 
     let connection = &mut establish_connection();
 
-    let data_atual = Local::now().to_rfc3339_opts(Micros,true);
-    let data_atual_convertida = DateTime::parse_from_rfc3339(&data_atual).unwrap();
-
-    let data_atual_convertida_de_novo: SystemTime = data_atual_convertida.into();
-
     let cliente = clientes::table
         .find(path.abs())
         .select(Cliente::as_select())
@@ -65,7 +60,7 @@ async fn transacao(path: web::Path<i32>, transacao: web::Json<RequestTransacao>)
         valor: transacao.valor,
         tipo: &transacao.tipo,
         descricao: &transacao.descricao,
-        realizada_em: data_atual_convertida_de_novo,
+        realizada_em: Local::now().to_rfc3339_opts(Micros,true),
     };
 
     if transacao.tipo == "d" {
@@ -121,7 +116,7 @@ async fn extrato(path: web::Path<i32>) -> impl Responder {
             "saldo": {
                 "limite": res_cliente[0].limite,
                 "total": res_cliente[0].saldo,
-                "data_extrato":  Local::now().to_rfc3339_opts(Micros,true).to_string(),
+                "data_extrato":  Local::now().to_rfc3339_opts(Micros,true),
                 
             },
             "ultimas_transacoes": &res_transacoes,

@@ -18,7 +18,7 @@ diesel::table! {
         #[max_length = 1]
         tipo -> Bpchar,
         descricao -> Nullable<Text>,
-        realizada_em -> Timestamp,
+        realizada_em -> Varchar,
     }
 }
 
