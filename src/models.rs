@@ -1,5 +1,5 @@
 use std::time::SystemTime;
-use diesel::{prelude::*, serialize};
+use diesel::prelude::*;
 use serde::{Serialize, Deserialize};
 
 use crate::schema::transacoes;
@@ -15,17 +15,18 @@ pub struct Cliente {
     pub saldo: i32,
 }
 
+#[derive(Serialize)]
+#[derive(Queryable, Selectable)]
 #[diesel(table_name = crate::schema::transacoes)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-#[derive(Queryable, Selectable)]
-#[derive(Serialize)]
+
 pub struct Transacao {
-    id: i32,
-    id_cliente: i32,
-    valor: i32,
-    tipo: String,
-    descricao: Option<String>,
-    realizada_em: SystemTime,
+    pub id: i32,
+    pub id_cliente: i32,
+    pub valor: i32,
+    pub tipo: String,
+    pub descricao: Option<String>,
+    pub realizada_em: SystemTime,
 }
 
 #[derive(Deserialize)]

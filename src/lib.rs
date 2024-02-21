@@ -1,7 +1,6 @@
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use dotenvy::dotenv;
-use models::Cliente;
 use std::env;
 
 pub mod models;

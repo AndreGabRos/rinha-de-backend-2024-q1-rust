@@ -1,9 +1,9 @@
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use chrono_tz::Tz;
-use rinha24::{*, schema::{clientes::{self, limite}, transacoes::{id_cliente, self, descricao}}, models::{Cliente, Transacao, NovaTransacao, RequestTransacao, RespostaTransacao}};
-use serde::Deserialize;
+use rinha24::{*, schema::{clientes::{self}, transacoes::{self}}, models::{Cliente, Transacao, NovaTransacao, RequestTransacao, RespostaTransacao}};
+
 use serde_json::json;
-use std::{env, str::FromStr, time::SystemTime};
+use std::{env, time::SystemTime};
 use diesel::prelude::{*, SelectableHelper};
 use chrono::{Local, DateTime};
 use chrono::SecondsFormat::Micros;
