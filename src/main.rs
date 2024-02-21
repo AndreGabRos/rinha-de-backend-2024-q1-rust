@@ -5,7 +5,7 @@ use rinha24::schema::clientes::{self, limite};
 use rinha24::schema::transacoes::{self, id_cliente, descricao};
 use serde::Deserialize;
 use serde_json::json;
-use std::{env, str::FromStr, time::SystemTime};
+use std::{env, time::SystemTime};
 use diesel::prelude::{*, SelectableHelper};
 use chrono::{Local, DateTime};
 use chrono::SecondsFormat::Micros;
