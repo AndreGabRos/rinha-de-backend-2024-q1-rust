@@ -40,20 +40,22 @@ async fn banco() -> impl Responder {
 
 #[post("/clientes/{id}/transacoes")]
 async fn transacao(path: web::Path<i32>, transacao: web::Json<RequestTransacao>) -> impl Responder {
-
     let connection = &mut establish_connection();
 
-    let cliente = clientes::table
+    let cliente: Result<Option<(i32, i32)>, diesel::result::Error> = clientes::table
         .find(path.abs())
-        .select(Cliente::as_select())
+        .select((clientes::limite, clientes::saldo))
         .first(connection)
         .optional();
 
+
     let cliente = match cliente {
         Ok(Some(cliente)) => cliente,
-        Ok(None) => return HttpResponse::NotFound().body(format!("Id inválido")),
+        Ok(None) => return HttpResponse::NotFound().body(format!("Id de cliente não cadastrado")),
         Err(_) => return HttpResponse::Ok().body("Errinho"),
     };
+
+    let (limite, saldo) = cliente;
 
     let mut nova_transacao = NovaTransacao {
         id_cliente: path.abs(),
@@ -69,12 +71,12 @@ async fn transacao(path: web::Path<i32>, transacao: web::Json<RequestTransacao>)
         return HttpResponse::Ok().body("Transacao inválida.");
     }
 
-    if nova_transacao.valor + cliente.saldo < cliente.limite * -1 {
+    if nova_transacao.valor + saldo < limite * -1 {
         return HttpResponse::build(actix_web::http::StatusCode::UNPROCESSABLE_ENTITY)
             .body("Não há limite o suficiente.");
     }
     let updated_cliente = diesel::update(clientes::table.find(path.abs()))
-        .set(clientes::saldo.eq(cliente.saldo+nova_transacao.valor))
+        .set(clientes::saldo.eq(saldo+nova_transacao.valor))
         .returning(Cliente::as_returning())
         .get_result(connection)
         .unwrap();
@@ -105,12 +107,12 @@ async fn extrato(path: web::Path<i32>) -> impl Responder {
 
     if !res_cliente.is_empty(){
         let res_transacoes = transacoes::table
-        .filter(transacoes::id_cliente.eq(path.abs()))
-        .limit(2)
-        .order(transacoes::realizada_em.desc())
-        .select(Transacao::as_select())
-        .load(connection)
-        .expect("Error loading transactions");
+            .filter(transacoes::id_cliente.eq(path.abs()))
+            .limit(2)
+            .order(transacoes::realizada_em.desc())
+            .select(Transacao::as_select())
+            .load(connection)
+            .expect("Error loading transactions");
 
         let response_body = json!({
             "saldo": {
