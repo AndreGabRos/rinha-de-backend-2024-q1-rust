@@ -1,13 +1,13 @@
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 
-use rinha24::{*, models::{Cliente, Transacao, NovaTransacao, RequestTransacao, RespostaTransacao}};
+use rinha24::{*, models::{Cliente, Transacao, NovaTransacao, RequestTransacao, RespostaTransacao}, schema::transacoes::realizada_em};
 use rinha24::schema::clientes::{self};
 use rinha24::schema::transacoes::{self};
 
 use serde_json::json;
-use std::{env};
+use std::env;
 use diesel::prelude::{*, SelectableHelper};
-use chrono::{Local};
+use chrono::Local;
 use chrono::SecondsFormat::Micros;
 
 #[get("/env")]
@@ -99,25 +99,27 @@ async fn transacao(path: web::Path<i32>, transacao: web::Json<RequestTransacao>)
 async fn extrato(path: web::Path<i32>) -> impl Responder {
     let connection = &mut establish_connection();
     
-    let res_cliente = clientes::table
-        .filter(clientes::id.eq(path.abs()))
-        .select(Cliente::as_select())
-        .load(connection)
-        .expect("Error loading clients");
+    let res_cliente: Result<Option<(i32, i32)>, diesel::result::Error> = clientes::table
+        .find(path.abs())
+        .select((clientes::limite, clientes::saldo))
+        .first(connection)
+        .optional();
 
-    if !res_cliente.is_empty(){
+    if let Ok(Some(cliente)) = res_cliente {
         let res_transacoes = transacoes::table
             .filter(transacoes::id_cliente.eq(path.abs()))
             .limit(2)
-            .order(transacoes::realizada_em.desc())
+            .order(transacoes::id.desc())
             .select(Transacao::as_select())
             .load(connection)
             .expect("Error loading transactions");
 
+        let (saldo, limite) = cliente;
+
         let response_body = json!({
             "saldo": {
-                "limite": res_cliente[0].limite,
-                "total": res_cliente[0].saldo,
+                "limite": limite,
+                "total": saldo,
                 "data_extrato":  Local::now().to_rfc3339_opts(Micros,true),
                 
             },
@@ -126,6 +128,7 @@ async fn extrato(path: web::Path<i32>) -> impl Responder {
         
         return HttpResponse::Ok().json(response_body); 
     }
+
     HttpResponse::NotFound().body("Erro ao acessar clientes")
 }
 
