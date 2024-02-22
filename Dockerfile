@@ -10,8 +10,8 @@ COPY Cargo.toml ./Cargo.toml
 COPY src/ ./src/
 #Adicionar o --release para os testes
 RUN apt install -y libpq-dev && cargo install diesel_cli --no-default-features --features postgres
-RUN cargo build
+RUN cargo build --release
 
 EXPOSE 8000
 #Mudar de debug para release para os testes
-CMD ./target/debug/rinha24
+CMD ./target/release/rinha24
