@@ -1,19 +1,22 @@
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 
-use rinha24::{*, models::{Cliente, Transacao, NovaTransacao, RequestTransacao, RespostaTransacao}, schema::transacoes::realizada_em};
+use rinha24::{*, models::{Cliente, Transacao, NovaTransacao, RequestTransacao, RespostaTransacao}};
 use rinha24::schema::clientes::{self};
 use rinha24::schema::transacoes::{self};
-
+use dotenvy::dotenv;
 use serde_json::json;
-use std::env;
+use std::{env};
 use diesel::prelude::{*, SelectableHelper};
-use chrono::Local;
+use chrono::{Local};
 use chrono::SecondsFormat::Micros;
+
+use crate::transacoes::*;
+
 
 #[get("/env")]
 async fn show_envs() -> impl Responder {
 
-    let db_hostname: String = env::var("DB_HOSTNAME").expect("Failed to read DB_HOSTNAME env var");
+    let db_hostname: String = env::var("ADD_API").expect("Failed to read DB_HOSTNAME env var");
     let postgres_pswd = env::var("POSTGRES_PASSWORD").expect("Failed to read POSTGRES_PASSWORD env var");
     let postgres_user = env::var("POSTGRES_USER").expect("Failed to read POSTGRES_USER env var");
     let postgres_db = env::var("POSTGRES_DB").expect("Failed to read POSTGRES_DB env var");
@@ -99,27 +102,25 @@ async fn transacao(path: web::Path<i32>, transacao: web::Json<RequestTransacao>)
 async fn extrato(path: web::Path<i32>) -> impl Responder {
     let connection = &mut establish_connection();
     
-    let res_cliente: Result<Option<(i32, i32)>, diesel::result::Error> = clientes::table
-        .find(path.abs())
-        .select((clientes::limite, clientes::saldo))
-        .first(connection)
-        .optional();
+    let res_cliente = clientes::table
+        .filter(clientes::id.eq(path.abs()))
+        .select((clientes::id,clientes::saldo,clientes::limite))
+        .load::<(i32,i32,i32)>(connection)
+        .expect("Error loading clients");
 
-    if let Ok(Some(cliente)) = res_cliente {
+    if !res_cliente.is_empty(){
         let res_transacoes = transacoes::table
             .filter(transacoes::id_cliente.eq(path.abs()))
-            .limit(2)
-            .order(transacoes::id.desc())
-            .select(Transacao::as_select())
-            .load(connection)
+            .limit(10)
+            .order(transacoes::realizada_em.desc())
+            .select((valor,descricao,tipo,realizada_em))
+            .load::<(i32,Option<String>,String,String)>(connection)
             .expect("Error loading transactions");
-
-        let (saldo, limite) = cliente;
 
         let response_body = json!({
             "saldo": {
-                "limite": limite,
-                "total": saldo,
+                "limite": res_cliente[0].1,
+                "total": res_cliente[0].2,
                 "data_extrato":  Local::now().to_rfc3339_opts(Micros,true),
                 
             },
@@ -128,12 +129,12 @@ async fn extrato(path: web::Path<i32>) -> impl Responder {
         
         return HttpResponse::Ok().json(response_body); 
     }
-
     HttpResponse::NotFound().body("Erro ao acessar clientes")
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    dotenv().ok();
     HttpServer::new(|| {
         App::new()
             .service(show_envs)
@@ -141,7 +142,7 @@ async fn main() -> std::io::Result<()> {
             .service(transacao)
             .service(extrato)
     })
-    .bind(("0.0.0.0", 8000))?
+    .bind(("0.0.0.0",8000))?
     .run()
     .await
 }
