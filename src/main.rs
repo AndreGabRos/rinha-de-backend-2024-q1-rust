@@ -1,17 +1,14 @@
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
-
-use rinha24::{*, models::{Cliente, Transacao, NovaTransacao, RequestTransacao, RespostaTransacao}};
-use rinha24::schema::clientes::{self};
-use rinha24::schema::transacoes::{self};
-use dotenvy::dotenv;
-use serde_json::json;
-use std::{env};
-use diesel::prelude::{*, SelectableHelper};
-use chrono::{Local};
-use chrono::SecondsFormat::Micros;
-
+use rinha24::{*, models::{Cliente, Transacao, NovaTransacao, RequestTransacao, RespostaTransacao},schema::clientes::{self},schema::transacoes::{self}};
 use crate::transacoes::*;
 
+use std::env;
+use dotenvy::dotenv;
+
+use serde_json::json;
+
+use diesel::prelude::{*, SelectableHelper};
+use chrono::{Local,SecondsFormat::Micros};
 
 #[get("/env")]
 async fn show_envs() -> impl Responder {
