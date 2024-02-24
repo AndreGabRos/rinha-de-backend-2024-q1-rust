@@ -5,13 +5,17 @@ use rinha24::schema::clientes::{self};
 use rinha24::schema::transacoes::{self};
 use dotenvy::dotenv;
 use serde_json::json;
-use std::{env};
+use std::{env, sync::{Mutex, Arc}};
 use diesel::prelude::{*, SelectableHelper};
 use chrono::{Local};
 use chrono::SecondsFormat::Micros;
 
 use crate::transacoes::*;
 
+
+struct ConnectionState {
+    conn: Arc<PgConnection>
+}
 
 #[get("/env")]
 async fn show_envs() -> impl Responder {
@@ -42,13 +46,12 @@ async fn banco() -> impl Responder {
 }
 
 #[post("/clientes/{id}/transacoes")]
-async fn transacao(path: web::Path<i32>, transacao: web::Json<RequestTransacao>) -> impl Responder {
-    let connection = &mut establish_connection();
-
+async fn transacao(path: web::Path<i32>, transacao: web::Json<RequestTransacao>, connection: web::Data<ConnectionState>) -> impl Responder {
+    let c = Arc::clone(&connection.conn);
     let cliente: Result<Option<(i32, i32)>, diesel::result::Error> = clientes::table
         .find(path.abs())
         .select((clientes::limite, clientes::saldo))
-        .first(connection)
+        .first()
         .optional();
 
 
@@ -81,13 +84,13 @@ async fn transacao(path: web::Path<i32>, transacao: web::Json<RequestTransacao>)
     let updated_cliente = diesel::update(clientes::table.find(path.abs()))
         .set(clientes::saldo.eq(saldo+nova_transacao.valor))
         .returning(Cliente::as_returning())
-        .get_result(connection)
+        .get_result(&mut connection.conn)
         .unwrap();
 
     diesel::insert_into(transacoes::table)
         .values(&nova_transacao)
         .returning(Transacao::as_returning())
-        .get_result(connection)
+        .get_result(&mut connection.conn)
         .expect("Error saving new transaction");
 
     let res = RespostaTransacao {
@@ -132,11 +135,12 @@ async fn extrato(path: web::Path<i32>) -> impl Responder {
     HttpResponse::NotFound().body("Erro ao acessar clientes")
 }
 
-#[actix_web::main]
+#[tokio::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
     HttpServer::new(|| {
         App::new()
+            .app_data(establish_connection())
             .service(show_envs)
             .service(banco)
             .service(transacao)
