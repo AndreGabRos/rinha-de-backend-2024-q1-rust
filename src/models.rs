@@ -50,3 +50,11 @@ pub struct RespostaTransacao {
     pub limite: i32,
     pub saldo: i32,
 }
+
+#[derive(Serialize)]
+pub struct TransacaoRespostaExtrato<'a> {
+    pub valor: i32,
+    pub tipo: &'a str,
+    pub descricao: &'a str,
+    pub realizad_em: &'a str,
+}
