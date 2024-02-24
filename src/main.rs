@@ -1,5 +1,4 @@
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
-
 use rinha24::{*, models::{Cliente, Transacao, NovaTransacao, RequestTransacao, RespostaTransacao}};
 use rinha24::schema::clientes::{self};
 use rinha24::schema::transacoes::{self};
@@ -7,11 +6,8 @@ use dotenvy::dotenv;
 use serde_json::json;
 use std::{env, sync::{Mutex, Arc}};
 use diesel::prelude::{*, SelectableHelper};
-use chrono::{Local};
-use chrono::SecondsFormat::Micros;
-
 use crate::transacoes::*;
-
+use chrono::{Local,SecondsFormat::Micros};
 
 struct ConnectionState {
     conn: Arc<PgConnection>
