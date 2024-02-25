@@ -10,7 +10,7 @@ CREATE TABLE transacoes (
   id_cliente INTEGER NOT NULL,
   valor INTEGER NOT NULL,
   tipo CHAR(1) NOT NULL,
-  descricao TEXT,
+  descricao VARCHAR(10),
   realizada_em VARCHAR(40) NOT NULL,
 
   CONSTRAINT clientes FOREIGN KEY (id_cliente) REFERENCES clientes(id)

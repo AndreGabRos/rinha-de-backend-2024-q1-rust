@@ -1,9 +1,8 @@
 use actix_web::{get, post, web::{self, Data}, App, HttpResponse, HttpServer, Responder, http};
 use deadpool_postgres::{Runtime, GenericClient};
-use rinha24::{models::{NovaTransacao, RequestTransacao, RespostaTransacao, TransacaoRespostaExtrato}};
-use dotenvy::dotenv;
+use rinha24::models::{NovaTransacao, RequestTransacao, RespostaTransacao, TransacaoRespostaExtrato};
 use serde_json::json;
-use tokio_postgres::{NoTls};
+use tokio_postgres::NoTls;
 use chrono::{Local,SecondsFormat::Micros};
 
 
@@ -25,6 +24,10 @@ async fn transacao(
         .await
         .unwrap();
 
+    if cliente.is_empty() {
+        return HttpResponse::build(http::StatusCode::NOT_FOUND).body("Cliente não encontrado.");
+    }
+
     let row = &cliente[0];
     let saldo: i32 = row.get(0);
     let limite: i32 = row.get(1);
@@ -38,8 +41,7 @@ async fn transacao(
         },
         tipo: &transacao.tipo,
         descricao: &transacao.descricao,
-        // realizada_em: Local::now().to_rfc3339_opts(Micros,true),
-        realizada_em: "123".to_string()
+        realizada_em: Local::now().to_rfc3339_opts(Micros,true),
     };
 
     if nova_transacao.valor + saldo < limite * -1 {
@@ -49,11 +51,16 @@ async fn transacao(
 
     let novo_saldo = saldo + nova_transacao.valor;
 
-    connection.query(
+    let tr = connection.query(
         "INSERT INTO transacoes (id_cliente, valor, tipo, descricao, realizada_em) VALUES ($1, $2, $3, $4, $5)",
         &[&nova_transacao.id_cliente, &nova_transacao.valor, &nova_transacao.tipo, &nova_transacao.descricao, &nova_transacao.realizada_em])
-        .await
-        .unwrap();
+        .await;
+
+
+    match tr {
+        Ok(_) => (),
+        Err(_) => return HttpResponse::build(http::StatusCode::UNPROCESSABLE_ENTITY).body("descrição muito grande."),
+    }
     
     connection.query(
         "UPDATE clientes SET saldo = $1 WHERE id = $2",
@@ -61,39 +68,6 @@ async fn transacao(
     )
         .await
         .unwrap();
-
-    // let mut nova_transacao = NovaTransacao {
-    //     id_cliente: path.abs(),
-    //     valor: transacao.valor,
-    //     tipo: &transacao.tipo,
-    //     descricao: &transacao.descricao,
-    //     realizada_em: Local::now().to_rfc3339_opts(Micros,true),
-    // };
-
-    // if transacao.tipo == "d" {
-    //     nova_transacao.valor = nova_transacao.valor * -1;
-    // } else if transacao.tipo != "c" {
-    //     return HttpResponse::Ok().body("Transacao inválida.");
-    // }
-
-    // let updated_cliente = diesel::update(clientes::table.find(path.abs()))
-    //     .set(clientes::saldo.eq(saldo+nova_transacao.valor))
-    //     .returning(Cliente::as_returning())
-    //     .get_result(&mut connection.conn)
-    //     .unwrap();
-
-    // diesel::insert_into(transacoes::table)
-    //     .values(&nova_transacao)
-    //     .returning(Transacao::as_returning())
-    //     .get_result(&mut connection.conn)
-    //     .expect("Error saving new transaction");
-
-    // let res = RespostaTransacao {
-    //     limite: updated_cliente.limite,
-    //     saldo: updated_cliente.saldo,
-    // };
-
-    // return HttpResponse::Ok().body("oi")
 
     let resposta = RespostaTransacao {
         saldo: novo_saldo,
@@ -121,7 +95,6 @@ async fn extrato(path: web::Path<i32>, connection: web::Data<deadpool_postgres::
     let row = &cliente[0];
     let saldo: i32 = row.get(0);
     let limite: i32 = row.get(1);
-    
     let sql2 = "SELECT valor, tipo, descricao, realizada_em
         FROM transacoes
         WHERE id_cliente = $1
@@ -158,34 +131,6 @@ async fn extrato(path: web::Path<i32>, connection: web::Data<deadpool_postgres::
     });
     
     HttpResponse::Ok().json(response_body)
-
-    // let res_cliente = clientes::table
-    //     .filter(clientes::id.eq(path.abs()))
-    //     .select((clientes::id,clientes::saldo,clientes::limite))
-    //     .load::<(i32,i32,i32)>(connection)
-    //     .expect("Error loading clients");
-
-    // if !res_cliente.is_empty(){
-    //     let res_transacoes = transacoes::table
-    //         .filter(transacoes::id_cliente.eq(path.abs()))
-    //         .limit(10)
-    //         .order(transacoes::realizada_em.desc())
-    //         .select((valor,descricao,tipo,realizada_em))
-    //         .load::<(i32,Option<String>,String,String)>(connection)
-    //         .expect("Error loading transactions");
-
-    //     let response_body = json!({
-    //         "saldo": {
-    //             "total": saldo,
-    //             "data_extrato":  Local::now().to_rfc3339_opts(Micros,true),
-    //             "limite": limite,
-    //             
-    //         },
-    //         "ultimas_transacoes": &res_transacoes,
-    //     });
-    //     
-    //     return HttpResponse::Ok().json(response_body); 
-    // }
 }
 
 #[tokio::main]
@@ -207,6 +152,7 @@ async fn main() -> std::io::Result<()> {
             .service(transacao)
             .service(extrato)
     })
+    .workers(1)
     .bind(("0.0.0.0",8000))?
     .run()
     .await
