@@ -1,43 +1,11 @@
 use actix_web::{get, post, web::{self, Data}, App, HttpResponse, HttpServer, Responder, http};
 use deadpool_postgres::{Runtime, GenericClient};
-use rinha24::{*, models::{Cliente, Transacao, NovaTransacao, RequestTransacao, RespostaTransacao, TransacaoRespostaExtrato}};
-use rinha24::schema::clientes::{self};
-use rinha24::schema::transacoes::{self};
+use rinha24::{models::{NovaTransacao, RequestTransacao, RespostaTransacao, TransacaoRespostaExtrato}};
 use dotenvy::dotenv;
 use serde_json::json;
 use tokio_postgres::{NoTls};
-use std::{env, sync::{Mutex, Arc}};
-use diesel::prelude::{*, SelectableHelper};
-use crate::transacoes::*;
 use chrono::{Local,SecondsFormat::Micros};
 
-#[get("/env")]
-async fn show_envs() -> impl Responder {
-
-    let db_hostname: String = env::var("ADD_API").expect("Failed to read DB_HOSTNAME env var");
-    let postgres_pswd = env::var("POSTGRES_PASSWORD").expect("Failed to read POSTGRES_PASSWORD env var");
-    let postgres_user = env::var("POSTGRES_USER").expect("Failed to read POSTGRES_USER env var");
-    let postgres_db = env::var("POSTGRES_DB").expect("Failed to read POSTGRES_DB env var");
-
-    // Constrói a resposta com todas as informações das variáveis de ambiente
-    let response_body = format!(
-        "DB Hostname: {}\nPostgres Password: {}\nPostgres User: {}\nPostgres DB: {}",
-        db_hostname, postgres_pswd, postgres_user, postgres_db
-    ); 
-
-    HttpResponse::Ok().body(response_body)
-}
-
-#[get("/banco")]
-async fn banco() -> impl Responder {
-    let connection = &mut establish_connection();
-
-    let res = clientes::table.select(Cliente::as_select()).load(connection).expect("Error loading clients");
-
-    let response_body = json!(res);
-
-    HttpResponse::Ok().json(response_body) 
-}
 
 #[post("/clientes/{id}/transacoes")]
 async fn transacao(
@@ -80,9 +48,6 @@ async fn transacao(
     }
 
     let novo_saldo = saldo + nova_transacao.valor;
-
-
-    println!("{}", nova_transacao.tipo);
 
     connection.query(
         "INSERT INTO transacoes (id_cliente, valor, tipo, descricao, realizada_em) VALUES ($1, $2, $3, $4, $5)",
@@ -169,7 +134,6 @@ async fn extrato(path: web::Path<i32>, connection: web::Data<deadpool_postgres::
         .await
         .unwrap();
 
-    println!("{:?}", transacoes);
 
     let mut v = Vec::new();
     for i in &transacoes {
@@ -227,8 +191,8 @@ async fn extrato(path: web::Path<i32>, connection: web::Data<deadpool_postgres::
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     let mut pg_config = deadpool_postgres::Config::new();
-    pg_config.user = Some("postgres".to_string());
-    pg_config.host = Some("/run/postgres".to_string());
+    pg_config.user = Some("admin".to_string());
+    pg_config.host = Some("db".to_string());
     pg_config.password = Some("123".to_string());
     pg_config.dbname = Some("rinha".to_string());
 
@@ -237,13 +201,9 @@ async fn main() -> std::io::Result<()> {
     let pg_pool = pg_config.create_pool(Some(Runtime::Tokio1), NoTls)
         .expect("error creating pool");
 
-
-    dotenv().ok();
     HttpServer::new(move || {
         App::new()
             .app_data(Data::new(pg_pool.clone()))
-            .service(show_envs)
-            .service(banco)
             .service(transacao)
             .service(extrato)
     })
