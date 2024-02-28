@@ -1,4 +1,4 @@
-use actix_web::{get, post, web::{self, Data}, App, HttpResponse, HttpServer, Responder, http};
+use actix_web::{get, post, web::{self, Data, Bytes}, App, HttpResponse, HttpServer, Responder, http};
 use deadpool_postgres::{Runtime, GenericClient};
 use rinha24::models::{NovaTransacao, RequestTransacao, RespostaTransacao, TransacaoRespostaExtrato};
 use serde_json::json;
@@ -9,12 +9,18 @@ use chrono::{Local,SecondsFormat::Micros};
 #[post("/clientes/{id}/transacoes")]
 async fn transacao(
     path: web::Path<i32>,
-    transacao: web::Json<RequestTransacao>,
+    transacao: Bytes,
     connection: web::Data<deadpool_postgres::Pool>
 ) -> impl Responder {
     let connection = connection.get().await.expect("error connecting to postgres");
 
-    if transacao.tipo != "d" && transacao.tipo != "c" {
+    let transacao: RequestTransacao = match serde_json::from_slice(&transacao) {
+        Ok(tr) => tr,
+        Err(_) => return HttpResponse::build(http::StatusCode::UNPROCESSABLE_ENTITY).body(""),
+        
+    };
+
+    if transacao.descricao.len() > 10 || transacao.descricao.len() == 0 {
         return HttpResponse::build(http::StatusCode::UNPROCESSABLE_ENTITY).body("tipo de transação inválido");
     }
 
@@ -32,24 +38,27 @@ async fn transacao(
     let saldo: i32 = row.get(0);
     let limite: i32 = row.get(1);
 
+    let novo_saldo: i32;
+    if transacao.tipo == "d" {
+        if (saldo - transacao.valor) < (limite * -1) {
+            return HttpResponse::build(actix_web::http::StatusCode::UNPROCESSABLE_ENTITY)
+                .body("não há limite o suficiente.");
+        }
+        novo_saldo = saldo - transacao.valor;
+    } else if transacao.tipo == "c" {
+        novo_saldo = saldo + transacao.valor;
+    } else {
+        return HttpResponse::build(actix_web::http::StatusCode::UNPROCESSABLE_ENTITY)
+            .body("Tipo inválido.");
+    }
+
     let nova_transacao = NovaTransacao {
         id_cliente: path.abs(),
-        valor: if transacao.tipo == "d" {
-            transacao.valor * -1
-        } else {
-            transacao.valor
-        },
+        valor: transacao.valor,
         tipo: &transacao.tipo,
         descricao: &transacao.descricao,
         realizada_em: Local::now().to_rfc3339_opts(Micros,true),
     };
-
-    if nova_transacao.valor + saldo < limite * -1 {
-        return HttpResponse::build(actix_web::http::StatusCode::UNPROCESSABLE_ENTITY)
-            .body("não há limite o suficiente.");
-    }
-
-    let novo_saldo = saldo + nova_transacao.valor;
 
     let tr = connection.query(
         "INSERT INTO transacoes (id_cliente, valor, tipo, descricao, realizada_em) VALUES ($1, $2, $3, $4, $5)",
@@ -61,6 +70,14 @@ async fn transacao(
         Ok(_) => (),
         Err(_) => return HttpResponse::build(http::StatusCode::UNPROCESSABLE_ENTITY).body("descrição muito grande."),
     }
+
+    let a: i64 = path.abs().into();
+
+    connection.query("SELECT pg_advisory_xact_lock($1)",
+        &[&a]
+        )
+        .await
+        .unwrap();
     
     connection.query(
         "UPDATE clientes SET saldo = $1 WHERE id = $2",
@@ -118,6 +135,8 @@ async fn extrato(path: web::Path<i32>, connection: web::Data<deadpool_postgres::
         };
 
         v.push(tr);
+
+
     }
     
     let response_body = json!({
