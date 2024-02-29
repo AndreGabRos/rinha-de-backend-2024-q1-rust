@@ -1,6 +1,8 @@
+mod models;
+
 use actix_web::{get, post, web::{self, Data, Bytes}, App, HttpResponse, HttpServer, Responder, http};
 use deadpool_postgres::{Runtime, GenericClient};
-use rinha24::models::{NovaTransacao, RequestTransacao, RespostaTransacao, TransacaoRespostaExtrato};
+use crate::models::{NovaTransacao, RequestTransacao, RespostaTransacao, TransacaoRespostaExtrato};
 use serde_json::json;
 use tokio_postgres::NoTls;
 use chrono::{Local,SecondsFormat::Micros};
@@ -11,14 +13,15 @@ async fn transacao(
     path: web::Path<i32>,
     transacao: Bytes,
     connection: web::Data<deadpool_postgres::Pool>
-) -> impl Responder {
-    let connection = connection.get().await.expect("error connecting to postgres");
+    ) -> impl Responder {
 
     let transacao: RequestTransacao = match serde_json::from_slice(&transacao) {
         Ok(tr) => tr,
         Err(_) => return HttpResponse::build(http::StatusCode::UNPROCESSABLE_ENTITY).body(""),
         
     };
+
+    let connection = connection.get().await.expect("error connecting to postgres");
 
     if transacao.descricao.len() > 10 || transacao.descricao.len() == 0 {
         return HttpResponse::build(http::StatusCode::UNPROCESSABLE_ENTITY).body("tipo de transação inválido");
@@ -39,6 +42,7 @@ async fn transacao(
     let limite: i32 = row.get(1);
 
     let novo_saldo: i32;
+
     if transacao.tipo == "d" {
         if (saldo - transacao.valor) < (limite * -1) {
             return HttpResponse::build(actix_web::http::StatusCode::UNPROCESSABLE_ENTITY)
@@ -60,24 +64,11 @@ async fn transacao(
         realizada_em: Local::now().to_rfc3339_opts(Micros,true),
     };
 
-    let tr = connection.query(
+
+    let _tr = connection.query(
         "INSERT INTO transacoes (id_cliente, valor, tipo, descricao, realizada_em) VALUES ($1, $2, $3, $4, $5)",
         &[&nova_transacao.id_cliente, &nova_transacao.valor, &nova_transacao.tipo, &nova_transacao.descricao, &nova_transacao.realizada_em])
         .await;
-
-
-    match tr {
-        Ok(_) => (),
-        Err(_) => return HttpResponse::build(http::StatusCode::UNPROCESSABLE_ENTITY).body("descrição muito grande."),
-    }
-
-    let a: i64 = path.abs().into();
-
-    connection.query("SELECT pg_advisory_xact_lock($1)",
-        &[&a]
-        )
-        .await
-        .unwrap();
     
     connection.query(
         "UPDATE clientes SET saldo = $1 WHERE id = $2",
@@ -94,11 +85,12 @@ async fn transacao(
     HttpResponse::Ok().json(json!(resposta))}
 
 #[get("/clientes/{id}/extrato")]
-async fn extrato(path: web::Path<i32>, connection: web::Data<deadpool_postgres::Pool>
-) -> impl Responder {
-    if path.abs() > 5 {
+async fn extrato(path: web::Path<i32>, connection: web::Data<deadpool_postgres::Pool>) -> impl Responder {
+    
+    if path.abs() > 5 || path.abs() < 0 {
         return HttpResponse::build(http::StatusCode::NOT_FOUND).body("rapaiz");
     }
+
     let connection = connection.get().await.expect("error connecting to postgres");
 
     let sql1 = "SELECT saldo, limite FROM clientes WHERE id = $1";
