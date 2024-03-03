@@ -11,10 +11,32 @@ CREATE TABLE transacoes (
   valor INTEGER NOT NULL,
   tipo CHAR(1) NOT NULL,
   descricao VARCHAR(10),
-  realizada_em VARCHAR(40) NOT NULL,
+  realizada_em TIMESTAMP NOT NULL,
 
   CONSTRAINT clientes FOREIGN KEY (id_cliente) REFERENCES clientes(id)
 );
+
+CREATE PROCEDURE fazer_transacao (
+  t_id_cliente INTEGER,
+  t_valor INTEGER,
+  t_tipo TEXT,
+  t_descricao TEXT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE 
+c_saldo INTEGER;
+c_limite INTEGER;
+BEGIN
+  SELECT saldo,limite INTO c_saldo,c_limite FROM clientes WHERE id = t_id_cliente;
+  -- IF c_saldo - t_valor <= 0 - c_limite THEN
+  UPDATE clientes SET saldo = c_saldo + t_valor WHERE id = t_id_cliente;
+  INSERT INTO transacoes (id_cliente, valor, tipo, descricao, realizada_em) VALUES (t_id_cliente, t_valor, t_tipo, t_descricao, CURRENT_TIMESTAMP);
+  -- ELSE
+  --   RAISE EXCEPTION 'transação ultrapassa o limite disponível';
+  -- END IF;
+END;
+$$;
 
 DO $$
 BEGIN
@@ -26,3 +48,5 @@ BEGIN
     ('padaria joia de cocaia', 100000 * 100),
     ('kid mais', 5000 * 100);
 END; $$
+
+-- CALL fazer_transacao (1, 1000, 'c', 'teste');
