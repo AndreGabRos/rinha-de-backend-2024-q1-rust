@@ -1,9 +1,11 @@
-use actix_web::{get, post, web::{self, Data, Bytes}, App, HttpResponse, HttpServer, Responder, http};
+use actix_web::{get, post, App, HttpResponse, HttpServer, Responder, http::StatusCode};
+use actix_web::web::{self, Data, Bytes};
 use deadpool_postgres::{Runtime, GenericClient};
-use crate::models::{NovaTransacao, RequestTransacao, RespostaTransacao, TransacaoRespostaExtrato};
 use serde_json::json;
 use tokio_postgres::NoTls;
-use chrono::{Local,SecondsFormat::Micros, DateTime, Utc, NaiveDate, NaiveDateTime};
+use chrono::{Local, SecondsFormat::Micros, NaiveDateTime};
+
+use crate::models::{RespostaTransacao, RequestTransacao, TransacaoRespostaExtrato};
 
 mod models;
 
@@ -16,21 +18,26 @@ async fn transacao(
 
     let transacao: RequestTransacao = match serde_json::from_slice(&transacao) {
         Ok(tr) => tr,
-        Err(_) => return HttpResponse::build(http::StatusCode::UNPROCESSABLE_ENTITY).body(""),
-        
+        Err(_) => return HttpResponse::build(StatusCode::UNPROCESSABLE_ENTITY)
+            .body(""),
     };
 
     let connection = connection.get().await.expect("erro ao conectar ao banco");
 
-    if transacao.descricao.len() > 10 || transacao.descricao.len() == 0 {
-        return HttpResponse::build(http::StatusCode::UNPROCESSABLE_ENTITY).body("descricao inválida");
-    }
-
     if path.abs() >= 6 {
-        return HttpResponse::build(http::StatusCode::NOT_FOUND).body("cliente não encontrado.");
+        return HttpResponse::build(StatusCode::NOT_FOUND)
+            .body("cliente não encontrado.");
     }
 
-    let res = connection.query("CALL fazer_transacao($1, $2, $3, $4);", &[&path.abs(), &transacao.valor, &transacao.tipo, &transacao.descricao]).await;
+    if transacao.descricao.len() > 10 || transacao.descricao.len() == 0 {
+        return HttpResponse::build(StatusCode::UNPROCESSABLE_ENTITY)
+            .body("descricao inválida");
+    }
+
+    let res = connection.query(
+        "CALL fazer_transacao($1, $2, $3, $4);",
+        &[&path.abs(), &transacao.valor, &transacao.tipo, &transacao.descricao]
+    ).await;
 
     match res {
         Ok(a) => {
@@ -43,15 +50,16 @@ async fn transacao(
 
             HttpResponse::Ok().json(json!(resposta)) 
         },
-        Err(_) => HttpResponse::build(http::StatusCode::UNPROCESSABLE_ENTITY).body("limite ultrapassado"),
+        Err(_) => HttpResponse::build(StatusCode::UNPROCESSABLE_ENTITY)
+            .body("limite ultrapassado"),
     }
 }
 
 #[get("/clientes/{id}/extrato")]
 async fn extrato(path: web::Path<i32>, connection: web::Data<deadpool_postgres::Pool>) -> impl Responder {
-
-    if path.abs() > 5 || path.abs() < 0 {
-        return HttpResponse::build(http::StatusCode::NOT_FOUND).body("rapaiz");
+    if path.abs() >= 6 {
+        return HttpResponse::build(StatusCode::NOT_FOUND)
+            .body("rapaiz");
     }
 
     let connection = connection.get().await.expect("erro ao conectar ao banco");
@@ -97,7 +105,7 @@ async fn extrato(path: web::Path<i32>, connection: web::Data<deadpool_postgres::
     let response_body = json!({
         "saldo": {
             "total": saldo,
-            "data_extrato":  Local::now().to_rfc3339_opts(Micros,true),
+            "data_extrato": Local::now().to_rfc3339_opts(Micros,true),
             "limite": limite,
             
         },
