@@ -1,6 +1,4 @@
 use std::env;
-
-
 use actix_web::{get, post, App, HttpResponse, HttpServer, Responder, http::StatusCode};
 use actix_web::web::{self, Data, Bytes};
 use deadpool_postgres::{Runtime, GenericClient};
