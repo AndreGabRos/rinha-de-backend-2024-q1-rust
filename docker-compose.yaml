@@ -54,7 +54,7 @@ services:
       resources:
         limits:
           cpus: "0.1"
-          memory: "15MB"
+          memory: "10MB"
 
   db:
     image: postgres:16
@@ -66,6 +66,7 @@ services:
       - POSTGRES_DB=rinha
     ports:
       - "5432:5432"
+    command: postgres -c 'max_connections=100'
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     deploy:
@@ -76,7 +77,7 @@ services:
           # de memória. A distribuição feita aqui é apenas
           # um exemplo – distribua como quiser.
           cpus: "0.36"
-          memory: "505MB"
+          memory: "510MB"
 
 # O uso do modo `bridge` deve ser adequado à carga que será usada no teste.
 # A edição anterior se beneficiou do modo host pois o volume de requisições

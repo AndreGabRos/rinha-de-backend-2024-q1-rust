@@ -1,6 +1,6 @@
 mod models;
 
-use std::env;
+use std::{env};
 use dotenvy::dotenv;
 use actix_web::{get, post, web::{self, Data, Bytes}, App, HttpResponse, HttpServer, Responder, http};
 use deadpool_postgres::{Runtime, GenericClient};
@@ -19,14 +19,14 @@ async fn transacao(
 
     let transacao: RequestTransacao = match serde_json::from_slice(&transacao) {
         Ok(tr) => tr,
-        Err(_) => return HttpResponse::build(http::StatusCode::UNPROCESSABLE_ENTITY).body(""),
+        Err(_) => return HttpResponse::build(http::StatusCode::UNPROCESSABLE_ENTITY).body("vim é melhor que nano"),
         
     };
 
     let connection = connection.get().await.expect("error connecting to postgres");
 
-    if transacao.descricao.len() > 10 || transacao.descricao.len() == 0 {
-        return HttpResponse::build(http::StatusCode::UNPROCESSABLE_ENTITY).body("tipo de transação inválido");
+    if  transacao.descricao.len() > 10 || transacao.descricao == ""{
+        return HttpResponse::build(http::StatusCode::UNPROCESSABLE_ENTITY).body("Linux>>>>Windows");
     }
 
     let cliente = connection.query(
