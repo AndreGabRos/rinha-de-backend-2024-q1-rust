@@ -1,4 +1,5 @@
 use std::env;
+use dotenvy::dotenv;
 use actix_web::{get, post, App, HttpResponse, HttpServer, Responder, http::StatusCode};
 use actix_web::web::{self, Data, Bytes};
 use deadpool_postgres::{Runtime, GenericClient};
@@ -118,6 +119,8 @@ async fn extrato(path: web::Path<i32>, connection: web::Data<deadpool_postgres::
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
+    dotenv().ok();
+
     let mut pg_config = deadpool_postgres::Config::new();
     pg_config.user = Some(env::var("POSTGRES_USER").expect("Failed to read POSTGRES_USER env var"));
     pg_config.host = Some(env::var("DB_HOSTNAME").expect("Failed to read DB_HOSTNAME env var"));
