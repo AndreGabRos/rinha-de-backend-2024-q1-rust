@@ -124,7 +124,7 @@ async fn main() -> std::io::Result<()> {
     c.user("admin");
     c.dbname("rinha");
     c.password("123");
-    c.host("db");
+    c.host("localhost");
     let (client, conn) = match c.connect(NoTls).await {
         Ok(t) => t,
         Err(err) => panic!("{}", err),
