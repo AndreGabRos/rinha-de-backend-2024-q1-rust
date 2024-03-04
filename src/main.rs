@@ -146,11 +146,13 @@ async fn extrato(path: web::Path<i32>, connection: web::Data<deadpool_postgres::
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
+    dotenv().ok();
+
     let mut pg_config = deadpool_postgres::Config::new();
-    pg_config.user = Some("admin".to_string());
-    pg_config.host = Some("db".to_string());
-    pg_config.password = Some("123".to_string());
-    pg_config.dbname = Some("rinha".to_string());
+    pg_config.user = Some(env::var("POSTGRES_USER").expect("Failed to read POSTGRES_USER env var"));
+    pg_config.host = Some(env::var("DB_HOSTNAME").expect("Failed to read DB_HOSTNAME env var"));
+    pg_config.password = Some(env::var("POSTGRES_PASSWORD").expect("Failed to read POSTGRES_PASSWORD env var"));
+    pg_config.dbname = Some(env::var("POSTGRES_DB").expect("Failed to read POSTGRES_DB env var"));
 
     pg_config.pool = deadpool_postgres::PoolConfig::new(100).into();
 
