@@ -1,6 +1,9 @@
 use core::panic;
 use std::sync::Arc;
 
+use std::time::Duration;
+use std::thread;
+
 use actix_web::{get, post, App, HttpResponse, HttpServer, Responder, http::StatusCode};
 use actix_web::web::{self, Data, Bytes};
 use serde_json::json;
@@ -120,11 +123,12 @@ async fn extrato(path: web::Path<i32>, client: web::Data<Arc<tokio_postgres::Cli
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
+    thread::sleep(Duration::from_secs(5));
     let mut c = tokio_postgres::Config::new();
     c.user("admin");
     c.dbname("rinha");
     c.password("123");
-    c.host("localhost");
+    c.host("db");
     let (client, conn) = match c.connect(NoTls).await {
         Ok(t) => t,
         Err(err) => panic!("{}", err),
