@@ -78,7 +78,6 @@ services:
           # um exemplo – distribua como quiser.
           cpus: "0.36"
           memory: "510MB"
-
 # O uso do modo `bridge` deve ser adequado à carga que será usada no teste.
 # A edição anterior se beneficiou do modo host pois o volume de requisições
 # era relativamente alto e a virtualização da rede se tornou um gargalo, mas

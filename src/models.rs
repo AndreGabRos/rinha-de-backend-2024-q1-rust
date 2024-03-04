@@ -27,14 +27,6 @@ pub struct RequestTransacao {
     pub descricao: String,
 }
 
-pub struct NovaTransacao<'a> {
-    pub id_cliente: i32,
-    pub valor: i32,
-    pub tipo: &'a str,
-    pub descricao: &'a str,
-    pub realizada_em: String,
-}
-
 #[derive(Serialize)]
 pub struct RespostaTransacao {
     pub limite: i32,
@@ -46,10 +38,8 @@ pub struct TransacaoRespostaExtrato<'a> {
     pub valor: i32,
     pub tipo: &'a str,
     pub descricao: &'a str,
-    pub realizad_em: &'a str,
+    pub realizad_em: String,
 }
-
-
 
 fn deserialize_int_or_float<'de, D>(deserializer: D) -> Result<i32, D::Error>
 where
