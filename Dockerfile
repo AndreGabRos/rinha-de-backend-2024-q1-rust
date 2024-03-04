@@ -9,7 +9,6 @@ WORKDIR /rinha24
 COPY Cargo.toml ./Cargo.toml
 COPY src/ ./src/
 #Adicionar o --release para os testes
-RUN apt install -y libpq-dev && cargo install diesel_cli --no-default-features --features postgres
 RUN cargo build --release
 
 EXPOSE 8000
