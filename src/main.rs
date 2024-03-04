@@ -1,5 +1,7 @@
 mod models;
 
+use std::env;
+use dotenvy::dotenv;
 use actix_web::{get, post, web::{self, Data, Bytes}, App, HttpResponse, HttpServer, Responder, http};
 use deadpool_postgres::{Runtime, GenericClient};
 use crate::models::{NovaTransacao, RequestTransacao, RespostaTransacao, TransacaoRespostaExtrato};
