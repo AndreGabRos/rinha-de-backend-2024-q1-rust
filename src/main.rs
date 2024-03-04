@@ -1,6 +1,8 @@
+use core::panic;
+use std::sync::Arc;
+
 use actix_web::{get, post, App, HttpResponse, HttpServer, Responder, http::StatusCode};
 use actix_web::web::{self, Data, Bytes};
-use deadpool_postgres::{Runtime, GenericClient};
 use serde_json::json;
 use tokio_postgres::NoTls;
 use chrono::{Local, SecondsFormat::Micros, NaiveDateTime};
@@ -13,7 +15,7 @@ mod models;
 async fn transacao(
     path: web::Path<i32>,
     transacao: Bytes,
-    connection: web::Data<deadpool_postgres::Pool>
+    client: web::Data<Arc<tokio_postgres::Client>>
     ) -> impl Responder {
 
     let transacao: RequestTransacao = match serde_json::from_slice(&transacao) {
@@ -21,8 +23,6 @@ async fn transacao(
         Err(_) => return HttpResponse::build(StatusCode::UNPROCESSABLE_ENTITY)
             .body(""),
     };
-
-    let connection = connection.get().await.expect("erro ao conectar ao banco");
 
     if path.abs() >= 6 {
         return HttpResponse::build(StatusCode::NOT_FOUND)
@@ -34,7 +34,12 @@ async fn transacao(
             .body("descricao inválida");
     }
 
-    let res = connection.query(
+    if transacao.tipo != "c" && transacao.tipo != "d" {
+        return HttpResponse::build(StatusCode::UNPROCESSABLE_ENTITY)
+            .body("tipo inválido");
+    }
+
+    let res = client.query(
         "CALL fazer_transacao($1, $2, $3, $4);",
         &[&path.abs(), &transacao.valor, &transacao.tipo, &transacao.descricao]
     ).await;
@@ -56,17 +61,15 @@ async fn transacao(
 }
 
 #[get("/clientes/{id}/extrato")]
-async fn extrato(path: web::Path<i32>, connection: web::Data<deadpool_postgres::Pool>) -> impl Responder {
+async fn extrato(path: web::Path<i32>, client: web::Data<Arc<tokio_postgres::Client>>) -> impl Responder {
     if path.abs() >= 6 {
         return HttpResponse::build(StatusCode::NOT_FOUND)
             .body("rapaiz");
     }
 
-    let connection = connection.get().await.expect("erro ao conectar ao banco");
-
     let sql1 = "SELECT saldo, limite FROM clientes WHERE id = $1";
 
-    let cliente = connection.query(
+    let cliente = client.query(
         sql1, 
         &[&path.abs()])
         .await
@@ -81,7 +84,7 @@ async fn extrato(path: web::Path<i32>, connection: web::Data<deadpool_postgres::
         ORDER BY id DESC
         LIMIT 2";
 
-    let transacoes = connection.query(
+    let transacoes = client.query(
         sql2,
         &[&path.abs()])
         .await
@@ -117,20 +120,26 @@ async fn extrato(path: web::Path<i32>, connection: web::Data<deadpool_postgres::
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
-    let mut pg_config = deadpool_postgres::Config::new();
-    pg_config.user = Some("admin".to_string());
-    pg_config.host = Some("db".to_string());
-    pg_config.password = Some("123".to_string());
-    pg_config.dbname = Some("rinha".to_string());
+    let mut c = tokio_postgres::Config::new();
+    c.user("admin");
+    c.dbname("rinha");
+    c.password("123");
+    c.host("db");
+    let (client, conn) = match c.connect(NoTls).await {
+        Ok(t) => t,
+        Err(err) => panic!("{}", err),
+    };
 
-    pg_config.pool = deadpool_postgres::PoolConfig::new(70).into();
+    tokio::spawn(async move {
+        if let Err(e) = conn.await {
+            eprintln!("erro de conexão: {}", e);
+        }
+    });
 
-    let pg_pool = pg_config.create_pool(Some(Runtime::Tokio1), NoTls)
-        .expect("erro criando o pool");
-
+    let d = Arc::new(client);
     HttpServer::new(move || {
         App::new()
-            .app_data(Data::new(pg_pool.clone()))
+            .app_data(Data::new(d.clone()))
             .service(transacao)
             .service(extrato)
     })

@@ -33,10 +33,6 @@ BEGIN
   SELECT saldo,limite INTO c_saldo,c_limite FROM clientes WHERE id = t_id_cliente;
   IF t_tipo = 'c' THEN
     UPDATE clientes SET saldo = c_saldo + t_valor WHERE id = t_id_cliente;
-    -- WITH subquery AS (
-    --   SELECT limite FROM clientes
-    -- )
-    -- SELECT saldo,limite FROM subquery RETURNING saldo,limite INTO c_saldo_atualizado,c_limite;
     INSERT INTO transacoes (id_cliente, valor, tipo, descricao, realizada_em) VALUES (t_id_cliente, t_valor, t_tipo, t_descricao, CURRENT_TIMESTAMP);
   ELSE
     IF c_saldo - t_valor >=  c_limite * -1 THEN
