@@ -3,13 +3,11 @@ use std::sync::Arc;
 use std::env;
 use chrono::{DateTime, Utc};
 use dotenvy::dotenv;
-use std::time::Duration;
-use std::thread;
 use actix_web::{get, post, App, HttpResponse, HttpServer, Responder, http::StatusCode};
 use actix_web::web::{self, Data, Bytes};
 use serde_json::json;
 use tokio_postgres::NoTls;
-use chrono::{SecondsFormat::Micros};
+use chrono::SecondsFormat::Micros;
 use crate::models::{RespostaTransacao, RequestTransacao, TransacaoRespostaExtrato};
 
 mod models;
@@ -123,7 +121,6 @@ async fn extrato(path: web::Path<i32>, client: web::Data<Arc<tokio_postgres::Cli
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
-    thread::sleep(Duration::from_secs(5));
     let mut c = tokio_postgres::Config::new();
     c.user(&(env::var("POSTGRES_USER").expect("Failed to read POSTGRES_USER env var")));
     c.dbname(&(env::var("POSTGRES_DB").expect("Failed to read POSTGRES_DB env var")));
