@@ -1,6 +1,7 @@
 use core::panic;
 use std::sync::Arc;
 use std::env;
+use chrono::{DateTime, Utc};
 use dotenvy::dotenv;
 use std::time::Duration;
 use std::thread;
@@ -8,7 +9,7 @@ use actix_web::{get, post, App, HttpResponse, HttpServer, Responder, http::Statu
 use actix_web::web::{self, Data, Bytes};
 use serde_json::json;
 use tokio_postgres::NoTls;
-use chrono::{Local, SecondsFormat::Micros, NaiveDateTime};
+use chrono::{SecondsFormat::Micros};
 use crate::models::{RespostaTransacao, RequestTransacao, TransacaoRespostaExtrato};
 
 mod models;
@@ -83,7 +84,7 @@ async fn extrato(path: web::Path<i32>, client: web::Data<Arc<tokio_postgres::Cli
         FROM transacoes
         WHERE id_cliente = $1
         ORDER BY id DESC
-        LIMIT 2";
+        LIMIT 10";
 
     let transacoes = client.query(
         sql2,
@@ -94,8 +95,8 @@ async fn extrato(path: web::Path<i32>, client: web::Data<Arc<tokio_postgres::Cli
 
     let mut v = Vec::new();
     for i in &transacoes {
-        let a: NaiveDateTime = i.get(3);
-        let b = a.to_string();
+        let a: DateTime<Utc> = i.get(3);
+        let b = a.to_rfc3339_opts(Micros,true);
         let tr = TransacaoRespostaExtrato {
             valor: i.get(0),
             tipo: i.get(1),
@@ -109,7 +110,7 @@ async fn extrato(path: web::Path<i32>, client: web::Data<Arc<tokio_postgres::Cli
     let response_body = json!({
         "saldo": {
             "total": saldo,
-            "data_extrato": Local::now().to_rfc3339_opts(Micros,true),
+            "data_extrato": Utc::now().to_rfc3339_opts(Micros,true),
             "limite": limite,
             
         },
@@ -125,9 +126,9 @@ async fn main() -> std::io::Result<()> {
     thread::sleep(Duration::from_secs(5));
     let mut c = tokio_postgres::Config::new();
     c.user(&(env::var("POSTGRES_USER").expect("Failed to read POSTGRES_USER env var")));
-    c.dbname(&(env::var("DB_HOSTNAME").expect("Failed to read DB_HOSTNAME env var")));
+    c.dbname(&(env::var("POSTGRES_DB").expect("Failed to read POSTGRES_DB env var")));
     c.password(&(env::var("POSTGRES_PASSWORD").expect("Failed to read POSTGRES_PASSWORD env var")));
-    c.host(&(env::var("POSTGRES_DB").expect("Failed to read POSTGRES_DB env var")));
+    c.host(&(env::var("DB_HOSTNAME").expect("Failed to read DB_HOSTNAME env var")));
     let (client, conn) = match c.connect(NoTls).await {
         Ok(t) => t,
         Err(err) => panic!("{}", err),
