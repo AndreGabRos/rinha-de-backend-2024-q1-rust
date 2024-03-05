@@ -124,10 +124,10 @@ async fn main() -> std::io::Result<()> {
     dotenv().ok();
     thread::sleep(Duration::from_secs(5));
     let mut c = tokio_postgres::Config::new();
-    c.user(&env::var("POSTGRES_USER").expect("Failed to read POSTGRES_USER env var"));
-    c.dbname(&env::var("DB_HOSTNAME").expect("Failed to read DB_HOSTNAME env var"));
-    c.password(&env::var("POSTGRES_PASSWORD").expect("Failed to read POSTGRES_PASSWORD env var"));
-    c.host(&env::var("POSTGRES_DB").expect("Failed to read POSTGRES_DB env var"));
+    c.user(&(env::var("POSTGRES_USER").expect("Failed to read POSTGRES_USER env var")));
+    c.dbname(&(env::var("DB_HOSTNAME").expect("Failed to read DB_HOSTNAME env var")));
+    c.password(&(env::var("POSTGRES_PASSWORD").expect("Failed to read POSTGRES_PASSWORD env var")));
+    c.host(&(env::var("POSTGRES_DB").expect("Failed to read POSTGRES_DB env var")));
     let (client, conn) = match c.connect(NoTls).await {
         Ok(t) => t,
         Err(err) => panic!("{}", err),
