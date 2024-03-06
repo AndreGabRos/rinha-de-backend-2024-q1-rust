@@ -30,7 +30,7 @@ async fn transacao(
             .body("cliente não encontrado.");
     }
 
-    if  transacao.descricao.len() > 10 || transacao.descricao == ""{
+    if  transacao.descricao.len() > 10 || transacao.descricao.len() == 0{
         return HttpResponse::build(StatusCode::UNPROCESSABLE_ENTITY).body("Linux>>>>Windows");
     }
 
