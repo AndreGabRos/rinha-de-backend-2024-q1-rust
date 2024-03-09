@@ -25,7 +25,7 @@ services:
       resources:
         limits:
           cpus: "0.52"
-          memory: "15MB"
+          memory: "30MB"
 
   api02:
     # Essa sintaxe reusa o que foi declarado em 'api01'.
@@ -66,6 +66,7 @@ services:
       - POSTGRES_DB=rinha
     ports:
       - "5432:5432"
+    command: postgres -c 'max_connections=100'
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     deploy:
@@ -76,7 +77,7 @@ services:
           # de memória. A distribuição feita aqui é apenas
           # um exemplo – distribua como quiser.
           cpus: "0.36"
-          memory: "510MB"
+          memory: "450MB"
 
   pgadmin:
     image: dpage/pgadmin4
