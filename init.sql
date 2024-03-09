@@ -19,8 +19,8 @@ CREATE TABLE transacoes (
 CREATE PROCEDURE fazer_transacao (
   t_id_cliente INTEGER,
   t_valor INTEGER,
-  t_tipo TEXT,
-  t_descricao TEXT,
+  t_tipo CHAR(1),
+  t_descricao VARCHAR(10),
   INOUT c_saldo_atualizado INTEGER DEFAULT NULL,
   INOUT c_limite_out INTEGER DEFAULT NULL
 )
