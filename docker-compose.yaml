@@ -24,7 +24,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.52"
+          cpus: "0.5"
           memory: "30MB"
 
   api02:
@@ -76,7 +76,7 @@ services:
           # aqui declarados é de 1.5 unidades de CPU e 550MB
           # de memória. A distribuição feita aqui é apenas
           # um exemplo – distribua como quiser.
-          cpus: "0.36"
+          cpus: "0.4"
           memory: "450MB"
 
   pgadmin:
