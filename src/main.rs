@@ -25,7 +25,7 @@ async fn transacao(
         
    };
 
-    if path.abs() >= 6 {
+    if path.abs() < 1 || path.abs() > 5 {
         return HttpResponse::build(StatusCode::NOT_FOUND)
             .body("cliente não encontrado.");
     }
@@ -62,7 +62,7 @@ async fn transacao(
 
 #[get("/clientes/{id}/extrato")]
 async fn extrato(path: web::Path<i32>, client: web::Data<Arc<tokio_postgres::Client>>) -> impl Responder {
-    if path.abs() >= 6 {
+    if path.abs() < 1 || path.abs() > 5 {
         return HttpResponse::build(StatusCode::NOT_FOUND)
             .body("rapaiz");
     }

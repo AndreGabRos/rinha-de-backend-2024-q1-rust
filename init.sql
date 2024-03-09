@@ -27,24 +27,28 @@ CREATE PROCEDURE fazer_transacao (
 LANGUAGE plpgsql
 AS $$
 DECLARE 
-c_saldo INTEGER;
-c_limite INTEGER;
+  c_saldo INTEGER;
+  c_limite INTEGER;
 BEGIN
-  SELECT saldo,limite INTO c_saldo,c_limite FROM clientes WHERE id = t_id_cliente;
-  IF t_tipo = 'c' THEN
-    UPDATE clientes SET saldo = c_saldo + t_valor WHERE id = t_id_cliente;
-    INSERT INTO transacoes (id_cliente, valor, tipo, descricao, realizada_em) VALUES (t_id_cliente, t_valor, t_tipo, t_descricao, CURRENT_TIMESTAMP);
-  ELSE
-    IF c_saldo - t_valor >=  c_limite * -1 THEN
-      UPDATE clientes SET saldo = c_saldo - t_valor WHERE id = t_id_cliente;
+  BEGIN
+    SELECT saldo, limite INTO c_saldo, c_limite FROM clientes WHERE id = t_id_cliente FOR UPDATE;
+    IF t_tipo = 'c' THEN
+      UPDATE clientes SET saldo = c_saldo + t_valor WHERE id = t_id_cliente;
       INSERT INTO transacoes (id_cliente, valor, tipo, descricao, realizada_em) VALUES (t_id_cliente, t_valor, t_tipo, t_descricao, CURRENT_TIMESTAMP);
     ELSE
-      RAISE EXCEPTION 'transação ultrapassa o limite disponível';
+      IF c_saldo - t_valor >= c_limite * -1 THEN
+        UPDATE clientes SET saldo = c_saldo - t_valor WHERE id = t_id_cliente;
+        INSERT INTO transacoes (id_cliente, valor, tipo, descricao, realizada_em) VALUES (t_id_cliente, t_valor, t_tipo, t_descricao, CURRENT_TIMESTAMP);
+      ELSE
+        RAISE EXCEPTION 'transação ultrapassa o limite disponível';
+      END IF;
     END IF;
-  END IF;
-  SELECT saldo,limite INTO c_saldo_atualizado,c_limite_out FROM clientes WHERE id = t_id_cliente;
+    SELECT saldo, limite INTO c_saldo_atualizado, c_limite_out FROM clientes WHERE id = t_id_cliente;
+    COMMIT;
+  END;
 END;
 $$;
+
 
 DO $$
 BEGIN
